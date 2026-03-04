@@ -133,9 +133,13 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
 
 <script>
-document.addEventListener("DOMContentLoaded", function() {
+function initCatcherPouchEditor() {
   var textarea = document.getElementById("editor-content");
   var container = document.getElementById("editor-container");
+  if (!textarea || !container || typeof CodeMirror === "undefined") return;
+  // Avoid double-initialization on Turbo morph
+  if (container.querySelector(".CodeMirror")) return;
+
   var editable = <%= CatcherPouch.config.editable ? "true" : "false" %>;
 
   var editor = CodeMirror(container, {
@@ -174,10 +178,17 @@ document.addEventListener("DOMContentLoaded", function() {
   setTimeout(function() { editor.refresh(); }, 100);
 
   window.catcherPouchEditor = editor;
-});
+}
 
 function refreshPreview() {
   var iframe = document.getElementById("preview-frame");
   iframe.src = iframe.src;
 }
+
+// Works with Turbo (turbo:load), Turbo morphs (turbo:morph), and plain page loads (DOMContentLoaded)
+document.addEventListener("turbo:load", initCatcherPouchEditor);
+document.addEventListener("turbo:render", initCatcherPouchEditor);
+document.addEventListener("DOMContentLoaded", initCatcherPouchEditor);
+// Also try immediately — Turbo evaluates inline scripts after DOM is ready
+initCatcherPouchEditor();
 </script>
