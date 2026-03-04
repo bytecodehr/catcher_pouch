@@ -6,8 +6,25 @@ module CatcherPouch
 
     layout -> { CatcherPouch.config.layout || 'catcher_pouch/application' }
 
-    # Ensure host app routes are available when using the host layout
-    helper Rails.application.routes.url_helpers
+    # Delegate host app route helpers (e.g. backoffice_account_path) to main_app
+    # so they work when rendering the host layout from an isolated engine
+    def self.helpers_for_main_app
+      Module.new do
+        def method_missing(method, *args, **kwargs, &block)
+          if main_app.respond_to?(method)
+            main_app.send(method, *args, **kwargs, &block)
+          else
+            super
+          end
+        end
+
+        def respond_to_missing?(method, include_private = false)
+          main_app.respond_to?(method, include_private) || super
+        end
+      end
+    end
+
+    helper helpers_for_main_app
 
     private
 
