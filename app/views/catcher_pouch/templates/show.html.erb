@@ -1,0 +1,183 @@
+<div class="w-full">
+  <div class="text-sm breadcrumbs mb-6">
+    <ul>
+      <li><%= link_to "Email Templates", root_path %></li>
+      <li><%= link_to @template[:mailer_class], mailer_path(mailer_class: @template[:mailer_class]) %></li>
+      <li><%= @template[:filename] %></li>
+    </ul>
+  </div>
+
+  <%# Error display %>
+  <% if defined?(@error) && @error %>
+    <div class="alert alert-error mb-4 shadow-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+      </svg>
+      <div>
+        <h3 class="font-bold">ERB Syntax Error</h3>
+        <pre class="text-xs mt-1 whitespace-pre-wrap"><%= @error %></pre>
+      </div>
+    </div>
+  <% end %>
+
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h1 class="text-xl font-bold flex items-center gap-2">
+        <span class="badge badge-sm <%= @template[:format] == :html ? 'badge-primary' : 'badge-ghost' %>">
+          <%= @template[:format] %>
+        </span>
+        <%= @template[:filename] %>
+      </h1>
+      <p class="text-sm text-base-content/50 mt-1">
+        <code><%= @template[:relative_path] %></code>
+      </p>
+    </div>
+    <div class="flex gap-2">
+      <%= link_to templates_preview_path(path: @template[:relative_path]),
+            class: "btn btn-ghost btn-sm gap-1", target: "_blank" do %>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+        Open Preview
+      <% end %>
+    </div>
+  </div>
+
+  <%# Email metadata %>
+  <% if @preview && !@preview[:error] %>
+    <div class="flex flex-wrap gap-4 mb-4 text-sm">
+      <% if @preview[:subject] %>
+        <div class="badge badge-lg badge-outline gap-1">
+          <strong>Subject:</strong> <%= @preview[:subject] %>
+        </div>
+      <% end %>
+      <% if @preview[:from] %>
+        <div class="badge badge-lg badge-ghost gap-1">
+          <strong>From:</strong> <%= @preview[:from] %>
+        </div>
+      <% end %>
+      <% if @preview[:to] %>
+        <div class="badge badge-lg badge-ghost gap-1">
+          <strong>To:</strong> <%= @preview[:to] %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-4" style="height: calc(100vh - 280px); min-height: 500px;">
+    <%# Code Editor %>
+    <div class="card bg-base-100 shadow-xl overflow-hidden flex flex-col">
+      <div class="card-body p-0 flex flex-col flex-1 min-h-0">
+        <div class="flex items-center justify-between px-4 py-2 bg-base-200 border-b border-base-300">
+          <span class="text-sm font-medium">Source Code</span>
+          <% if CatcherPouch.config.editable %>
+            <button type="button" onclick="document.getElementById('editor-form').requestSubmit()" class="btn btn-primary btn-xs gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              Save
+            </button>
+          <% end %>
+        </div>
+
+        <% if CatcherPouch.config.editable %>
+          <%= form_with url: templates_update_path(path: @template[:relative_path]),
+                method: :patch, id: "editor-form", class: "flex-1 flex flex-col min-h-0" do |f| %>
+            <div id="editor-container" class="flex-1 min-h-0 overflow-hidden"></div>
+            <textarea name="content" id="editor-content" class="hidden"><%= @content %></textarea>
+          <% end %>
+        <% else %>
+          <div id="editor-container" class="flex-1 min-h-0 overflow-hidden"></div>
+          <textarea id="editor-content" class="hidden"><%= @content %></textarea>
+        <% end %>
+      </div>
+    </div>
+
+    <%# Preview %>
+    <div class="card bg-base-100 shadow-xl overflow-hidden flex flex-col">
+      <div class="card-body p-0 flex flex-col flex-1 min-h-0">
+        <div class="flex items-center justify-between px-4 py-2 bg-base-200 border-b border-base-300">
+          <span class="text-sm font-medium">Preview</span>
+          <button type="button" onclick="refreshPreview()" class="btn btn-ghost btn-xs gap-1">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+        </div>
+        <div class="flex-1 min-h-0 overflow-auto bg-white">
+          <iframe id="preview-frame"
+                  src="<%= templates_preview_path(path: @template[:relative_path]) %>"
+                  class="w-full h-full border-0"
+                  sandbox="allow-same-origin"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%# CodeMirror 6 via CDN %>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/dracula.min.css">
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/ruby/ruby.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/xml-fold.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/fold/foldgutter.min.css">
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var textarea = document.getElementById("editor-content");
+  var container = document.getElementById("editor-container");
+  var editable = <%= CatcherPouch.config.editable ? "true" : "false" %>;
+
+  var editor = CodeMirror(container, {
+    value: textarea.value,
+    mode: "htmlmixed",
+    theme: "dracula",
+    lineNumbers: true,
+    lineWrapping: true,
+    autoCloseTags: true,
+    matchBrackets: true,
+    foldGutter: true,
+    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+    readOnly: editable ? false : "nocursor",
+    tabSize: 2,
+    indentWithTabs: false
+  });
+
+  // Sync editor content back to hidden textarea on change
+  if (editable) {
+    editor.on("change", function() {
+      textarea.value = editor.getValue();
+    });
+
+    // Cmd/Ctrl+S to save
+    editor.setOption("extraKeys", {
+      "Cmd-S": function() {
+        document.getElementById("editor-form").requestSubmit();
+      },
+      "Ctrl-S": function() {
+        document.getElementById("editor-form").requestSubmit();
+      }
+    });
+  }
+
+  // Auto-resize
+  setTimeout(function() { editor.refresh(); }, 100);
+
+  window.catcherPouchEditor = editor;
+});
+
+function refreshPreview() {
+  var iframe = document.getElementById("preview-frame");
+  iframe.src = iframe.src;
+}
+</script>

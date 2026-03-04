@@ -1,0 +1,62 @@
+<div class="w-full">
+  <% if content_for?(:breadcrumbs) %>
+    <%= yield :breadcrumbs %>
+  <% else %>
+    <div class="text-sm breadcrumbs mb-6">
+      <ul>
+        <li>Email Templates</li>
+      </ul>
+    </div>
+  <% end %>
+
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold">Email Templates</h1>
+    <p class="text-base-content/60 mt-1">Preview and <%= CatcherPouch.config.editable ? "edit " : "" %>all email templates in your application.</p>
+  </div>
+
+  <% if @mailers.empty? %>
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body items-center text-center py-12">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content/30 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+        <p class="text-base-content/50">No mailers found in this application.</p>
+      </div>
+    </div>
+  <% else %>
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <% @mailers.each do |mailer| %>
+        <div class="card bg-base-100 shadow-xl hover:shadow-2xl transition-shadow">
+          <div class="card-body">
+            <h2 class="card-title text-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <%= mailer[:mailer_class] %>
+            </h2>
+
+            <div class="mt-2 space-y-1">
+              <% mailer[:actions].each do |action| %>
+                <div class="text-sm text-base-content/70 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                  <%= action %>
+                </div>
+              <% end %>
+            </div>
+
+            <div class="flex items-center gap-2 mt-3 text-xs text-base-content/50">
+              <span class="badge badge-ghost badge-sm"><%= mailer[:actions].size %> actions</span>
+              <span class="badge badge-ghost badge-sm"><%= mailer[:templates].size %> templates</span>
+            </div>
+
+            <div class="card-actions justify-end mt-4">
+              <%= link_to "View Templates", mailer_path(mailer_class: mailer[:mailer_class]), class: "btn btn-primary btn-sm" %>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+</div>

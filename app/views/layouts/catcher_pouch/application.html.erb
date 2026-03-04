@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CatcherPouch — Email Templates</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@5/themes.css" rel="stylesheet" type="text/css" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@4" rel="stylesheet" type="text/css" />
+  <style>
+    .cm-editor { height: 100%; font-size: 14px; }
+    .cm-scroller { overflow: auto; }
+  </style>
+</head>
+<body data-theme="dracula" class="bg-base-100 text-base-content min-h-screen">
+  <% if flash[:notice] || flash[:alert] %>
+    <div class="fixed top-4 right-4 z-50 space-y-2">
+      <% if flash[:notice] %>
+        <div class="alert alert-success shadow-lg"><span><%= flash[:notice] %></span></div>
+      <% end %>
+      <% if flash[:alert] %>
+        <div class="alert alert-error shadow-lg"><span><%= flash[:alert] %></span></div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <%= yield %>
+</body>
+</html>
