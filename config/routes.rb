@@ -9,11 +9,7 @@ CatcherPouch::Engine.routes.draw do
     end
   end
 
-  resources :templates, only: [], param: :path do
-    collection do
-      get :show
-      get :preview
-      patch :update
-    end
-  end
+  get  'templates/show',    to: 'templates#show',    as: :template_show
+  get  'templates/preview', to: 'templates#preview', as: :template_preview
+  patch 'templates/update', to: 'templates#update',  as: :template_update
 end
