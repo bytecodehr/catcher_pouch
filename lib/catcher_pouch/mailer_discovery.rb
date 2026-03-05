@@ -11,54 +11,49 @@ module CatcherPouch
         klass == ActionMailer::Base || klass.name == 'ApplicationMailer' || klass.name&.start_with?('ActionMailer::')
       end
 
-      mailers.sort_by(&:name).map do |mailer_class|
+      mailers.sort_by(&:name).filter_map do |mailer_class|
         actions = mailer_actions(mailer_class)
+        templates = actions.flat_map { |action| templates_for(mailer_class, action) }
+
+        # Only include mailers that have at least one app-level template
+        next if templates.empty?
+
+        # Filter actions to only those with app-level templates
+        actions_with_templates = templates.map { |t| t[:action] }.uniq
         {
           mailer_class: mailer_class.name,
-          actions: actions,
-          templates: actions.flat_map { |action| templates_for(mailer_class, action) }
+          actions: actions_with_templates.sort,
+          templates: templates
         }
       end
     end
 
     # Returns all template files for a specific mailer and action.
-    # When an app-level template exists, gem-bundled defaults are excluded.
+    # Only returns app-level templates (from app/views). Gem-bundled templates
+    # that haven't been overridden are excluded — they can't be meaningfully
+    # edited and often reference helpers/routes that may not exist.
     def self.templates_for(mailer_class, action)
-      view_paths = resolve_view_paths(mailer_class)
       app_views = Rails.root.join('app/views').to_s
+      prefix = mailer_class.name.underscore
+      dir = File.join(app_views, prefix)
+      return [] unless File.directory?(dir)
+
       templates = []
+      Dir.glob(File.join(dir, "#{action}*")).each do |file|
+        next if File.directory?(file)
 
-      view_paths.each do |base_path|
-        prefix = mailer_class.name.underscore
-        dir = File.join(base_path, prefix)
-        next unless File.directory?(dir)
-
-        Dir.glob(File.join(dir, "#{action}*")).each do |file|
-          next if File.directory?(file)
-
-          relative = file.sub("#{base_path}/", '')
-          format = detect_format(file)
-          app_template = file.start_with?(app_views)
-
-          templates << {
-            mailer_class: mailer_class.name,
-            action: action,
-            path: file,
-            relative_path: relative,
-            format: format,
-            filename: File.basename(file),
-            app_template: app_template
-          }
-        end
+        templates << {
+          mailer_class: mailer_class.name,
+          action: action,
+          path: file,
+          relative_path: file.sub("#{app_views}/", ''),
+          format: detect_format(file),
+          filename: File.basename(file),
+          app_template: true
+        }
       end
 
-      # Deduplicate: prefer app-level templates over gem-bundled ones
-      templates.uniq { |t| t[:relative_path] }.select do |t|
-        # Keep if it's an app template, or if no app template exists for this relative path
-        t[:app_template] || templates.none? do |other|
-          other[:relative_path] == t[:relative_path] && other[:app_template]
-        end
-      end
+      templates
     end
 
     # Returns all discoverable template files across all mailers.
@@ -101,23 +96,22 @@ module CatcherPouch
       []
     end
 
+    # Discover actions from app-level template files only.
+    # This catches inherited actions (e.g. invitation_instructions from DeviseInvitable)
+    # that have been overridden in the app, while ignoring gem-only templates.
     def self.actions_from_templates(mailer_class)
-      view_paths = resolve_view_paths(mailer_class)
+      app_views = Rails.root.join('app/views').to_s
       prefix = mailer_class.name.underscore
+      dir = File.join(app_views, prefix)
+      return [] unless File.directory?(dir)
+
       actions = []
+      Dir.glob(File.join(dir, '*')).each do |file|
+        next if File.directory?(file)
 
-      view_paths.each do |base_path|
-        dir = File.join(base_path, prefix)
-        next unless File.directory?(dir)
-
-        Dir.glob(File.join(dir, '*')).each do |file|
-          next if File.directory?(file)
-
-          # Extract action name: "confirmation_code.html.erb" -> "confirmation_code"
-          basename = File.basename(file)
-          action = basename.sub(/\.(html|text)\.(erb|haml|slim)$/, '').sub(/\.(erb|haml|slim)$/, '')
-          actions << action
-        end
+        basename = File.basename(file)
+        action = basename.sub(/\.(html|text)\.(erb|haml|slim)$/, '').sub(/\.(erb|haml|slim)$/, '')
+        actions << action
       end
 
       actions.uniq
